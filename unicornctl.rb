@@ -34,7 +34,7 @@ def unicorn_pid_file(options)
   if options[:pid_file]
     app_file_path(options[:app_dir], options[:pid_file])
   else
-    File.join(options[:app_dir], 'shared', 'pids', 'unicorn.pid')
+    File.join(options[:app_dir], 'shared', 'pids', "#{unicorn_bin}.pid")
   end
 end
 
@@ -42,7 +42,7 @@ def unicorn_config_file(options)
   if options[:unicorn_config]
     app_file_path(options[:app_dir], options[:unicorn_config])
   else
-    File.join(options[:app_dir], 'shared', 'unicorn.rb')
+    File.join(options[:app_dir], 'shared', "#{unicorn_bin}.rb")
   end
 end
 
@@ -52,10 +52,6 @@ def rackup_config_file(options)
   else
     File.join(options[:app_dir], 'current', 'config.ru')
   end
-end
-
-def unicorn_bin(options)
-  "unicorn"
 end
 
 def escape(param)
@@ -178,7 +174,7 @@ def start_application!(options)
   end
 
   # Get unicorn bin
-  unicorn_bin = unicorn_bin(options)
+  unicorn_bin = options[:unicorn_bin]
 
   # Get unicorn config
   unicorn_config = unicorn_config_file(options)
@@ -351,6 +347,10 @@ def show_help(error = nil)
   puts '  --health-check-content=string  | -C string  Health check expected content (default: just check for HTTP 200 OK)'
   puts '  --health-check-timeout=sec     | -T sec     Individual health check timeout (default: 5 sec)'
   puts '  --timeout=sec                  | -t sec     Operation (start/stop/etc) timeout (default: 30 sec)'
+  puts '  --unicorn-config=file          | -c file    Unicorn config file to use, absolute or relative path (default: shared/unicorn.rb)'
+  puts '  --rackup-config=file           | -r file    Rackup config file to use, absolute or relative path (default: current/config.ru)'
+  puts '  --pid-file=file                | -p file    PID-file unicorn is configured to use (default: shared/pids/unicorn.pid)'
+  puts '  --rainbows                     | -R         Use rainbows to start the app (default: use unicorn)'
   puts '  --help                         | -h         This help'
   puts
   exit(error ? 1 : 0)
@@ -365,6 +365,10 @@ opts = GetoptLong.new(
   [ '--health-check-content', '-C', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--health-check-timeout', '-T', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--timeout',              '-t', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--unicorn-config=file',  '-c', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--rackup-config=file',   '-r', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--pid-file=file',        '-p', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--rainbows',             '-R', GetoptLong::NO_ARGUMENT ],
   [ '--help',                 '-h', GetoptLong::NO_ARGUMENT ]
 )
 
@@ -375,7 +379,11 @@ options = {
   :check_content => nil,
   :env => 'development',
   :timeout => 30,
-  :check_timeout => 5
+  :check_timeout => 5,
+  :unicorn_bin => 'unicorn',
+  :pid_file => nil,
+  :rackup_config => nil,
+  :unicorn_config => nil
 }
 
 # Process options
@@ -398,6 +406,18 @@ opts.each do |opt, arg|
 
     when "--health-check-timeout"
       options[:check_timeout] = arg.to_i
+
+    when "--unicorn-config"
+      options[:unicorn_config] = arg.strip
+
+    when "--rackup-config"
+      options[:rackup_config] = arg.strip
+
+    when "--pid-file"
+      options[:pid_file] = arg.strip
+
+    when "--rainbows"
+      options[:unicorn_bin] = 'rainbows'
 
     when "--help"
       show_help
