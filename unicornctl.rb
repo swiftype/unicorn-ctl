@@ -6,6 +6,15 @@ require 'shellwords'
 require 'getoptlong'
 require 'httparty'
 
+VALID_COMMANDS = %w[
+  start
+  stop
+  force-stop
+  restart
+  force-restart
+  upgrade
+]
+
 #---------------------------------------------------------------------------------------------------
 # Make sure our console output is synchronous
 STDOUT.sync = true
@@ -76,6 +85,31 @@ def read_pid(pid_file)
   File.read(pid_file).strip.to_i
 end
 
+def wait_for_pid_to_die(pid, timeout)
+  print "Waiting for the process to stop: "
+  start_time = Time.now
+  while Time.now - start_time < timeout
+    print "."
+    break unless pid_running?(pid)
+    sleep(1)
+  end
+end
+
+def stop_unicorn_process(pid, timeout, graceful)
+  signal = graceful ? 'QUIT' : 'TERM'
+  puts "Sending #{signal} signal to process with pid=#{pid}..."
+  send_signal(signal, pid)
+
+  wait_for_pid_to_die(pid, timeout)
+
+  if pid_running?(pid)
+    puts " Failed to stop, killing!"
+    kill_tree(pid)
+  else
+    puts " Done!"
+  end
+end
+
 #---------------------------------------------------------------------------------------------------
 # Kills a process and all of its descendants
 def kill_tree(pid)
@@ -117,7 +151,7 @@ def check_app_health(options)
   end
 
   puts "ERROR: Health check has been failing for #{Time.now - start_time} seconds, giving up now!"
-  exit(1)
+  return false
 end
 
 #---------------------------------------------------------------------------------------------------
@@ -131,7 +165,9 @@ def start_application!(options)
       puts "OK: The app is already running"
 
       # If we have a health check url, let's check it
-      check_app_health(options) if options[:check_url]
+      if options[:check_url]
+        exit(1) unless check_app_health(options)
+      end
 
       # Done
       exit(0)
@@ -188,7 +224,9 @@ def start_application!(options)
   end
 
   # If we have a health check url, let's check it
-  check_app_health(options) if options[:check_url]
+  if options[:check_url]
+    exit(1) unless check_app_health(options)
+  end
 
   # Ok, we're good
   puts "Started! PID=#{pid}"
@@ -206,24 +244,7 @@ def stop_application!(options, graceful = false)
 
   pid = read_pid(pid_file)
   if pid_running?(pid)
-    signal = graceful ? 'QUIT' : 'TERM'
-    puts "Sending #{signal} signal to process with pid=#{pid}..."
-    send_signal(signal, pid)
-
-    print "Waiting for the process to stop: "
-    start_time = Time.now
-    while Time.now - start_time < options[:timeout]
-      print "."
-      break unless pid_running?(pid)
-      sleep(1)
-    end
-
-    if pid_running?(pid)
-      puts " Failed to stop, killing!"
-      kill_tree(pid)
-    else
-      puts " Done!"
-    end
+    stop_unicorn_process(pid, options[:timeout], graceful)
   else
     puts "WARNING: Slate pid file found, removing it: #{pid_file}"
     FileUtils.rm(pid_file)
@@ -234,11 +255,96 @@ def stop_application!(options, graceful = false)
 end
 
 #---------------------------------------------------------------------------------------------------
+def upgrade_application!(options)
+  pid_file = unicorn_pid_file(options)
+  old_pid_file = unicorn_pid_file(options) + '.oldbin'
+
+  # Make sure there is no old pid file (which we could have if an upgrade failed mid-way)
+  if File.exists?(old_pid_file)
+    puts "WARNING: Old pid file exists: #{old_pid_file}"
+
+    pid = read_pid(old_pid_file)
+    if pid_running?(pid)
+      puts "WARNING: Old binary is still running, shutting it down"
+      stop_unicorn_process(pid, options[:timeout], false)
+    else
+      puts "WARNING: Removing stale pid file: #{old_pid_file}"
+      FileUtils.rm(old_pid_file)
+    end
+  end
+
+  # Now let's see if the app is actually running
+  unless File.exists?(pid_file)
+    puts "WARNING: No pid file found: #{pid_file}. Trying to do a cold startup procedure..."
+    start_application!(options)
+  end
+
+  # Get current pid and check if it is up
+  old_pid = read_pid(pid_file)
+
+  # If the app is down, just do a normal cold startup procedure
+  unless pid_running?(old_pid)
+    puts "WARNING: Stale pid file found: #{pid_file}. Trying to do a cold startup procedure..."
+    start_application!(options)
+  end
+
+  # The app is running, let's try to do the upgrade:
+  # Ask old master to start a new binary and move itself into the old state
+  puts "Sending USR2 signal to old master: #{old_pid}..."
+  send_signal('USR2', old_pid)
+
+  puts "Waiting for the new master to replace the old one..."
+
+  # Wait for the new master to start
+  start_time = Time.now
+  new_started = false
+  while Time.now - start_time < options[:timeout]
+    sleep(1)
+    new_pid = File.exists?(pid_file) ? read_pid(pid_file) : nil
+    if new_pid != old_pid
+      new_started = true
+      break
+    end
+  end
+
+  # If we failed to see the new master started, let's try to do a cold restart
+  unless new_started
+    puts "WARNING: New master didn't start in #{options[:timeout]} seconds, trying to do a cold restart..."
+    stop_unicorn_process(old_pid, options[:timeout], false)
+    start_application!(options)
+  end
+
+  # We have the new master
+  new_pid = read_pid(pid_file)
+  puts "New master detected with pid=#{new_pid}"
+
+  # If we have a health check url, let's check it
+  if options[:check_url]
+    if check_app_health(options)
+      puts "Health check succeeded on the new master!"
+    else
+      puts "ERROR: Failed to verify health of the new master, nuking everything and trying a cold start..."
+      stop_unicorn_process(new_pid, 1, false)
+      stop_unicorn_process(old_pid, 1, false)
+      start_application!(options)
+    end
+  end
+
+  # Now let's shut down the old master
+  puts "Stopping old unicorn master: #{old_pid}"
+  stop_unicorn_process(old_pid, options[:timeout], true)
+
+  # All done!
+  puts "OK: Upgrade is done successfully!"
+end
+
+#---------------------------------------------------------------------------------------------------
 def show_help(error = nil)
   puts "ERROR: #{error}\n\n" if error
 
   puts "Usage: #{$0} [options] <command>"
-  puts 'Where args are:'
+  puts "Valid commands: #{VALID_COMMANDS.join(', ')}"
+  puts 'Options:'
   puts '  --app-dir=dir                  | -d dir     Base directory for the application (required)'
   puts '  --environment=name             | -e name    RACK_ENV to use for the app (default: development)'
   puts '  --health-check-url=url         | -H url     Health check URL used to make sure the app has started'
@@ -302,7 +408,7 @@ end
 command = ARGV.first
 
 # Make sure we have the command
-show_help("Please specify one of valid commands: start, stop, graceful-stop!") unless command
+show_help("Please specify one of valid commands: #{VALID_COMMANDS.join(', ')}") unless command
 
 # Check app directory
 show_help("Please specify application directory!") unless options[:app_dir]
@@ -310,15 +416,27 @@ show_help("Please specify a valid application directory!") unless File.directory
 options[:app_dir] = File.realpath(options[:app_dir])
 
 #---------------------------------------------------------------------------------------------------
+# Run commands
 case command
   when 'start'
     start_application!(options)
 
   when 'stop'
+    stop_application!(options, true)
+
+  when 'force-stop'
     stop_application!(options, false)
 
-  when 'graceful-stop'
-    stop_application!(options, true)
+  when 'restart'
+    stop_application(options, true)
+    start_application!(options)
+
+  when 'force-restart'
+    stop_application(options, false)
+    start_application!(options)
+
+  when 'upgrade'
+    upgrade_application!(options)
 
   else
     show_help("ERROR: Invalid command: #{command}")
