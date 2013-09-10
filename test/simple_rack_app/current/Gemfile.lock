@@ -1,0 +1,15 @@
+GEM
+  specs:
+    kgio (2.8.0)
+    rack (1.4.5)
+    raindrops (0.10.0)
+    unicorn (4.6.0)
+      kgio (~> 2.6)
+      rack
+      raindrops (~> 0.7)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  unicorn
