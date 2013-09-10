@@ -269,7 +269,7 @@ options = {
   :check_content => nil,
   :env => 'development',
   :timeout => 30,
-  :check_timeout => 2
+  :check_timeout => 5
 }
 
 # Process options
