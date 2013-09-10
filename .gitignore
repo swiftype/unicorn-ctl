@@ -1,2 +1,5 @@
+/pkg
 *.log
 *.pid
+*.bak
+.DS_Store
