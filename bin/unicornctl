@@ -34,7 +34,7 @@ def unicorn_pid_file(options)
   if options[:pid_file]
     app_file_path(options[:app_dir], options[:pid_file])
   else
-    File.join(options[:app_dir], 'shared', 'pids', "#{unicorn_bin}.pid")
+    File.join(options[:app_dir], 'shared', 'pids', "#{options[:unicorn_bin]}.pid")
   end
 end
 
@@ -42,7 +42,7 @@ def unicorn_config_file(options)
   if options[:unicorn_config]
     app_file_path(options[:app_dir], options[:unicorn_config])
   else
-    File.join(options[:app_dir], 'shared', "#{unicorn_bin}.rb")
+    File.join(options[:app_dir], 'shared', "#{options[:unicorn_bin]}.rb")
   end
 end
 
@@ -173,9 +173,6 @@ def start_application!(options)
     end
   end
 
-  # Get unicorn bin
-  unicorn_bin = options[:unicorn_bin]
-
   # Get unicorn config
   unicorn_config = unicorn_config_file(options)
   unless File.readable?(unicorn_config)
@@ -191,7 +188,7 @@ def start_application!(options)
   end
 
   # Compose unicorn startup command
-  command = "cd #{escape options[:app_dir]}/current && bundle exec #{unicorn_bin} " <<
+  command = "cd #{escape options[:app_dir]}/current && bundle exec #{options[:unicorn_bin]} " <<
             "--env #{escape options[:env]} --daemonize --config-file #{escape unicorn_config} "
             "#{escape rackup_config}"
 
@@ -248,6 +245,28 @@ def stop_application!(options, graceful = false)
 
   puts "Stopped!"
   exit(0)
+end
+
+#---------------------------------------------------------------------------------------------------
+def restart_application!(options, graceful)
+  # Check if the app is running and stop it if needed
+  pid_file = unicorn_pid_file(options)
+  if File.exists?(pid_file)
+    pid = read_pid(pid_file)
+    if pid_running?(pid)
+      stop_unicorn_process(pid, options[:timeout], graceful)
+    else
+      puts "WARNING: Slate pid file found, removing it: #{pid_file}"
+      FileUtils.rm(pid_file)
+    end
+
+    puts "Stopped!"
+  else
+    puts "The process is not running"
+  end
+
+  # Start the app
+  start_application!(options)
 end
 
 #---------------------------------------------------------------------------------------------------
@@ -448,12 +467,10 @@ case command
     stop_application!(options, false)
 
   when 'restart'
-    stop_application(options, true)
-    start_application!(options)
+    restart_application!(options, true)
 
   when 'force-restart'
-    stop_application(options, false)
-    start_application!(options)
+    restart_application!(options, false)
 
   when 'upgrade'
     upgrade_application!(options)
