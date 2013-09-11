@@ -6,6 +6,10 @@ unicorn instances or upgrade them without or with minimal downtime. `unicornctl`
 be used as a base for a startup script for unix operating systems (see examples directory for a
 Redhat-style startup script example).
 
+Please note, that this is still an alpha-quality software and it could have many issues. If you try it and 
+find any problems, feel free to report them using [Github Issues page](https://github.com/swiftype/unicorn-ctl/issues). 
+Pull requests are welcome too!
+
 ### Installation
 
 The script comes packaged as a rubygem, so installation procedure is as simple as running the
