@@ -13,6 +13,7 @@ VALID_COMMANDS = %w[
   restart
   force-restart
   upgrade
+  reopen-logs
 ]
 
 #---------------------------------------------------------------------------------------------------
@@ -354,6 +355,28 @@ def upgrade_application!(options)
 end
 
 #---------------------------------------------------------------------------------------------------
+def reopen_logs!(options)
+  # Check pid file
+  pid_file = unicorn_pid_file(options)
+  unless File.exists?(pid_file)
+    puts "OK: The process is not running"
+    exit(0)
+  end
+
+  pid = read_pid(pid_file)
+  if pid_running?(pid)
+    puts "Sending USR1 signal to process with pid=#{pid}..."
+    send_signal('USR1', pid)
+  else
+    puts "WARNING: Slate pid file found, removing it: #{pid_file}"
+    FileUtils.rm(pid_file)
+  end
+
+  puts "Done!"
+  exit(0)
+end
+
+#---------------------------------------------------------------------------------------------------
 def show_help(error = nil)
   puts "ERROR: #{error}\n\n" if error
 
@@ -474,6 +497,9 @@ case command
 
   when 'upgrade'
     upgrade_application!(options)
+
+  when 'reopen-logs'
+    reopen_logs!(options)
 
   else
     show_help("ERROR: Invalid command: #{command}")
