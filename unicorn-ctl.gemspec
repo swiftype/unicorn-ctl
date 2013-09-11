@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "unicorn-ctl"
-  spec.version       = "0.0.5"
+  spec.version       = "0.1.0"
   spec.authors       = [ "Oleksiy Kovyrin" ]
   spec.email         = [ "alexey@kovyrin.net" ]
   spec.description   = %q{A script to control unicorn instances.}
@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.homepage      = "https://github.com/swiftype/unicorn-ctl"
   spec.license       = "MIT"
 
-  spec.files         = Dir[ "{lib}/**/*.rb", "bin/*", "LICENSE.txt" ]
+  spec.files         = Dir[ "{lib}/**/*.rb", "bin/*", "*.txt", "*.md" ]
   spec.executables   = %w[ unicornctl ]
 
   spec.add_dependency "httparty"
