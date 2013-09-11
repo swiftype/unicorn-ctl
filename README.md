@@ -1,13 +1,13 @@
 ## unicornctl - unicorn/rainbows control script
 
-`unicornctl` is a simple and easy to use console tool for managing ruby applications using 
-[unicorn](http://unicorn.bogomips.org/) or [rainbows](http://rainbows.rubyforge.org/) application servers. 
-The tool provides a set of reliable commands to start/stop/restart unicorn instances or upgrade them 
-without or with minimal downtime. `unicornctl` script could easily be used as a base for a startup 
+`unicornctl` is a simple and easy to use console tool for managing ruby applications using
+[unicorn](http://unicorn.bogomips.org/) or [rainbows](http://rainbows.rubyforge.org/) application servers.
+The tool provides a set of reliable commands to start/stop/restart unicorn instances or upgrade them
+without or with minimal downtime. `unicornctl` script could easily be used as a base for a startup
 script for unix operating systems (see examples directory for a Redhat-style startup script example).
 
-Please note, that this is still an alpha-quality software and it could have many issues. If you try it and 
-find any problems, feel free to report them using [Github Issues page](https://github.com/swiftype/unicorn-ctl/issues). 
+Please note, that this is still an alpha-quality software and it could have many issues. If you try it and
+find any problems, feel free to report them using [Github Issues page](https://github.com/swiftype/unicorn-ctl/issues).
 Pull requests are welcome too!
 
 ### Installation
@@ -58,6 +58,10 @@ The following command are supported at the moment:
 * `upgrade` - zero or minimal downtime restart option for a unicorn application. Performs a set of
   steps to start a new copy of the application, test it and then gracefully shut down the old copy.
   If the graceful restart fails for any reason, the application is forcefully restarted.
+* `reopen-logs` - Makes unicorn reopen its log files. This allows logrotate to rotate files atomically
+  and quickly via rename instead of the racy and slow copytruncate method.
+* `status` - Display current application server status. If the server is up, the command exits with exit
+  code 0, otherwise the exit code will be 1.
 
 For more information on unicorn procss management you could check their
 [official documentation page](http://unicorn.bogomips.org/SIGNALS.html).
