@@ -24,7 +24,7 @@ After installation you should have an access to the `unicornctl` console command
 Here is the help output from the `unicornctl` command:
 
 ```
-Usage: ./bin/unicornctl [options] <command>
+Usage: unicornctl [options] <command>
 Valid commands: start, stop, force-stop, restart, force-restart, upgrade
 Options:
   --app-dir=dir                  | -d dir     Base directory for the application (required)
