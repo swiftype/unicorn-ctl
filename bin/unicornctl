@@ -318,7 +318,7 @@ def upgrade_application!(options)
   while Time.now - start_time < options[:timeout]
     sleep(1)
     new_pid = File.exists?(pid_file) ? read_pid(pid_file) : nil
-    if new_pid != old_pid
+    if new_pid && new_pid != old_pid
       new_started = true
       break
     end

@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "unicorn-ctl"
-  spec.version       = "0.1.2"
+  spec.version       = "0.1.3"
   spec.authors       = [ "Oleksiy Kovyrin" ]
   spec.email         = [ "alexey@kovyrin.net" ]
   spec.description   = %q{A script to control unicorn instances.}
