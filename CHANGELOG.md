@@ -1,6 +1,6 @@
 ## UnicornCtl Changelog
 
-### 0.1.3 / Not released yet
+### 0.1.3 / 2013-09-17
 
 * Fix unicorn upgrades: really wait for the new master to replace the old one.
 
