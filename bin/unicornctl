@@ -60,6 +60,15 @@ def escape(param)
   Shellwords.escape(param)
 end
 
+def wait_with_timeout(timeout, sleep_time = 1, &block)
+  raise "No block given" unless block_given?
+  start_time = Time.now
+  while Time.now - start_time < timeout do
+    block.call
+    sleep(sleep_time)
+  end
+end
+
 #-------------------------------------------------------------------------------------------
 # Check if process is still running
 def pid_running?(pid)
@@ -85,11 +94,9 @@ end
 
 def wait_for_pid_to_die(pid, timeout)
   print "Waiting for the process to stop: "
-  start_time = Time.now
-  while Time.now - start_time < timeout
+  wait_with_timeout(timeout) do
     print "."
     break unless pid_running?(pid)
-    sleep(1)
   end
 end
 
@@ -106,6 +113,13 @@ def stop_unicorn_process(pid, timeout, graceful)
   else
     puts " Done!"
   end
+end
+
+def process_title(pid)
+  return nil unless pid_running?(pid)
+  cmdline_file = "/proc/#{pid}/cmdline"
+  return nil unless File.readable?(cmdline_file)
+  return File.read(cmdline_file).strip
 end
 
 #---------------------------------------------------------------------------------------------------
@@ -218,6 +232,12 @@ def start_application!(options)
     exit(1)
   end
 
+  # Wait for a while to let the new master start
+  if options[:start_wait] > 0
+    puts "Waiting for #{options[:start_wait]} seconds to let the new master load completely..."
+    sleep(options[:start_wait])
+  end
+
   # If we have a health check url, let's check it
   if options[:check_url]
     exit(1) unless check_app_health(options)
@@ -313,10 +333,8 @@ def upgrade_application!(options)
   puts "Waiting for the new master to replace the old one..."
 
   # Wait for the new master to start
-  start_time = Time.now
   new_started = false
-  while Time.now - start_time < options[:timeout]
-    sleep(1)
+  wait_with_timeout(options[:timeout]) do
     new_pid = File.exists?(pid_file) ? read_pid(pid_file) : nil
     if new_pid && new_pid != old_pid
       new_started = true
@@ -335,6 +353,30 @@ def upgrade_application!(options)
   new_pid = read_pid(pid_file)
   puts "New master detected with pid=#{new_pid}"
 
+  # Just in case we were asked to watch master proctitle, save its current content
+  master_proctitle = process_title(new_pid)
+  if options[:watch_proctitle]
+    puts "New master process #{new_pid} title: #{master_proctitle}"
+  end
+
+  # Wait for a while to let the new master start
+  if options[:start_wait] > 0
+    puts "Waiting for #{options[:start_wait]} seconds to let the new master load completely..."
+    sleep(options[:start_wait])
+  end
+
+  # If we're asked to watch proctitle, let's wait for the title to change
+  if options[:watch_proctitle]
+    puts "Waiting for process title to change for master process #{new_pid}..."
+    wait_with_timeout(options[:timeout]) do
+      cur_title = process_title(new_pid)
+      if master_proctitle != cur_title
+        puts "Master process #{new_pid} new title: #{cur_title}"
+        break
+      end
+    end
+  end
+
   # If we have a health check url, let's check it
   if options[:check_url]
     if check_app_health(options)
@@ -350,6 +392,15 @@ def upgrade_application!(options)
   # Now let's shut down the old master
   puts "Stopping old unicorn master: #{old_pid}"
   stop_unicorn_process(old_pid, options[:timeout], true)
+
+  # If we have a health check url, let's pefrorm the final check
+  if options[:check_url]
+    puts "Performing the final health check..."
+    unless check_app_health(options)
+      puts "ERROR: Final health check failed!"
+      exit(1)
+    end
+  end
 
   # All done!
   puts "OK: Upgrade is done successfully!"
@@ -409,10 +460,12 @@ def show_help(error = nil)
   puts '  --health-check-url=url         | -H url     Health check URL used to make sure the app has started'
   puts '  --health-check-content=string  | -C string  Health check expected content (default: just check for HTTP 200 OK)'
   puts '  --health-check-timeout=sec     | -T sec     Individual health check timeout (default: 5 sec)'
+  puts '  --start-wait=sec               | -w sec     New master startup wait (default: 5 sec, use 0 to disable)'
   puts '  --timeout=sec                  | -t sec     Operation (start/stop/etc) timeout (default: 30 sec)'
   puts '  --unicorn-config=file          | -c file    Unicorn config file to use, absolute or relative path (default: shared/unicorn.rb)'
   puts '  --rackup-config=file           | -r file    Rackup config file to use, absolute or relative path (default: current/config.ru)'
   puts '  --pid-file=file                | -p file    PID-file unicorn is configured to use (default: shared/pids/unicorn.pid)'
+  puts '  --watch-proctitle              | -W         Watch new master proctitle until it changes, which usually means it has finished loading'
   puts '  --rainbows                     | -R         Use rainbows to start the app (default: use unicorn)'
   puts '  --help                         | -h         This help'
   puts
@@ -427,10 +480,12 @@ opts = GetoptLong.new(
   [ '--health-check-url',     '-U', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--health-check-content', '-C', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--health-check-timeout', '-T', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--start-wait',           '-w', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--timeout',              '-t', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--unicorn-config=file',  '-c', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--rackup-config=file',   '-r', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--pid-file=file',        '-p', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--watch-proctitle',      '-W', GetoptLong::NO_ARGUMENT ],
   [ '--rainbows',             '-R', GetoptLong::NO_ARGUMENT ],
   [ '--help',                 '-h', GetoptLong::NO_ARGUMENT ]
 )
@@ -443,10 +498,12 @@ options = {
   :env => 'development',
   :timeout => 30,
   :check_timeout => 5,
+  :start_wait => 5,
   :unicorn_bin => 'unicorn',
   :pid_file => nil,
   :rackup_config => nil,
-  :unicorn_config => nil
+  :unicorn_config => nil,
+  :watch_proctitle => false
 }
 
 # Process options
@@ -470,6 +527,9 @@ opts.each do |opt, arg|
     when "--health-check-timeout"
       options[:check_timeout] = arg.to_i
 
+    when "--start-wait"
+      options[:start_wait] = arg.to_i
+
     when "--unicorn-config"
       options[:unicorn_config] = arg.strip
 
@@ -478,6 +538,14 @@ opts.each do |opt, arg|
 
     when "--pid-file"
       options[:pid_file] = arg.strip
+
+    when "--watch-proctitle"
+      # Try to get pid for self
+      if process_title(Process.pid)
+        options[:watch_proctitle] = true
+      else
+        puts "WARNING: Proctitle checking is not supported on this platform!"
+      end
 
     when "--rainbows"
       options[:unicorn_bin] = 'rainbows'
