@@ -1,5 +1,9 @@
 ## UnicornCtl Changelog
 
+### 0.1.5 / 2014-02-21
+
+* Fix --unicorn-config/--rackup-config/--pid-file options handling.
+
 ### 0.1.4 / 2014-02-20
 
 * Add a wait period after upgrade/start to make sure new master has a chance to start before we perform a health check on it.

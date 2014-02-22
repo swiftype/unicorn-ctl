@@ -482,9 +482,9 @@ opts = GetoptLong.new(
   [ '--health-check-timeout', '-T', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--start-wait',           '-w', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--timeout',              '-t', GetoptLong::REQUIRED_ARGUMENT ],
-  [ '--unicorn-config=file',  '-c', GetoptLong::REQUIRED_ARGUMENT ],
-  [ '--rackup-config=file',   '-r', GetoptLong::REQUIRED_ARGUMENT ],
-  [ '--pid-file=file',        '-p', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--unicorn-config',       '-c', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--rackup-config',        '-r', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--pid-file',             '-p', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--watch-proctitle',      '-W', GetoptLong::NO_ARGUMENT ],
   [ '--rainbows',             '-R', GetoptLong::NO_ARGUMENT ],
   [ '--help',                 '-h', GetoptLong::NO_ARGUMENT ]
