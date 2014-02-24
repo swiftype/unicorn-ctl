@@ -63,7 +63,7 @@ The following command are supported at the moment:
 * `status` - Display current application server status. If the server is up, the command exits with exit
   code 0, otherwise the exit code will be 1.
 
-For more information on unicorn procss management you could check their
+For more information on unicorn process management you could check their
 [official documentation page](http://unicorn.bogomips.org/SIGNALS.html).
 
 ### License
