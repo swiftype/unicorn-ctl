@@ -139,14 +139,15 @@ def check_app_health(options)
     sleep(1)
 
     response = begin
-      HTTParty.get(options[:check_url], :timeout => options[:check_timeout])
+      HTTParty.get(options[:check_url], :timeout => options[:check_timeout], :no_follow => true)
     rescue Timeout::Error => e
       puts "Health check timed out after #{options[:check_timeout]} seconds. Retrying..."
       next
     end
 
-    if response.code.to_i / 100 == 2
-      puts "Health check succeeded with code: #{response.code}"
+    code = response.code.to_i
+    if 100 <= code && code < 400
+      puts "Health check succeeded with code: #{code}"
       if options[:check_content]
         if response.body.match(options[:check_content])
           puts "Content check succeeded, found content in response body: #{options[:check_content]}"
@@ -458,7 +459,7 @@ def show_help(error = nil)
   puts '  --app-dir=dir                  | -d dir     Base directory for the application (required)'
   puts '  --environment=name             | -e name    RACK_ENV to use for the app (default: development)'
   puts '  --health-check-url=url         | -H url     Health check URL used to make sure the app has started'
-  puts '  --health-check-content=string  | -C string  Health check expected content (default: just check for HTTP 200 OK)'
+  puts '  --health-check-content=string  | -C string  Health check expected content (default: just check for HTTP 1xx/2xx/3xx)'
   puts '  --health-check-timeout=sec     | -T sec     Individual health check timeout (default: 5 sec)'
   puts '  --start-wait=sec               | -w sec     New master startup wait (default: 5 sec, use 0 to disable)'
   puts '  --timeout=sec                  | -t sec     Operation (start/stop/etc) timeout (default: 30 sec)'

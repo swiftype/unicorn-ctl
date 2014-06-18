@@ -1,5 +1,9 @@
 ## UnicornCtl Changelog
 
+### 0.1.6 / 2014-06-18
+
+* Do not follow recirects when performing a health check and handle all 1xx/2xx/3xx as success.
+
 ### 0.1.5 / 2014-02-21
 
 * Fix --unicorn-config/--rackup-config/--pid-file options handling.
