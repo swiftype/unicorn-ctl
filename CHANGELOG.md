@@ -3,6 +3,7 @@
 ### 0.1.6 / 2014-06-18
 
 * Do not follow recirects when performing a health check and handle all 1xx/2xx/3xx as success.
+* When pid file is empty, treat it as a stale one.
 
 ### 0.1.5 / 2014-02-21
 

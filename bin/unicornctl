@@ -69,17 +69,22 @@ def wait_with_timeout(timeout, sleep_time = 1, &block)
   end
 end
 
-#-------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # Check if process is still running
 def pid_running?(pid)
-  begin
-    Process.kill(0, pid)
-    return true
-  rescue Errno::ESRCH
-    return false
-  rescue ::Exception   # for example on EPERM (process exists but does not belong to us)
-    return true
-  end
+  # Make sure PID is correct
+  pid = pid.to_i
+  return false if pid <= 0
+
+  # Check if the process exists
+  Process.kill(0, pid)
+  return true
+
+rescue Errno::ESRCH  # Process does not exist
+  return false
+
+rescue ::Exception   # for example on EPERM (process exists but does not belong to us)
+  return true
 end
 
 def send_signal(signal, pid)
