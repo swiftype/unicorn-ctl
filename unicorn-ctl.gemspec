@@ -1,8 +1,10 @@
 # encoding: utf-8
+$LOAD_PATH.push File.expand_path('../lib', __FILE__)
+require 'unicorn_ctl/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "unicorn-ctl"
-  spec.version       = "0.1.6"
+  spec.version       = UnicornCtl::Version::STRING
   spec.authors       = [ "Oleksiy Kovyrin" ]
   spec.email         = [ "alexey@kovyrin.net" ]
   spec.description   = %q{A script to control unicorn instances.}

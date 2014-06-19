@@ -1,5 +1,9 @@
 ## UnicornCtl Changelog
 
+### 0.1.7 / 2014-06-19
+
+* Add version module and `-v` key to the script allowing users to see what version is installed.
+
 ### 0.1.6 / 2014-06-18
 
 * Do not follow recirects when performing a health check and handle all 1xx/2xx/3xx as success.
