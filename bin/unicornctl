@@ -219,7 +219,7 @@ def start_application!(options)
   end
 
   # Compose unicorn startup command
-  command = "cd #{escape options[:app_dir]}/current && bundle exec #{options[:unicorn_bin]} " <<
+  command = "cd #{escape options[:app_dir]}/current && #{options[:bundle_command]} exec #{options[:unicorn_bin]} " <<
             "--env #{escape options[:env]} --daemonize --config-file #{escape unicorn_config} "
             "#{escape rackup_config}"
 
@@ -485,6 +485,7 @@ def show_help(error = nil)
   puts '  --health-check-timeout=sec     | -T sec     Individual health check timeout (default: 5 sec)'
   puts '  --start-wait=sec               | -w sec     New master startup wait (default: 5 sec, use 0 to disable)'
   puts '  --timeout=sec                  | -t sec     Operation (start/stop/etc) timeout (default: 30 sec)'
+  puts '  --bundle-command=cmd           | -b cmd     Command that executes bundler (default: bundle)'
   puts '  --unicorn-config=file          | -c file    Unicorn config file to use, absolute or relative path (default: shared/unicorn.rb)'
   puts '  --rackup-config=file           | -r file    Rackup config file to use, absolute or relative path (default: current/config.ru)'
   puts '  --pid-file=file                | -p file    PID-file unicorn is configured to use (default: shared/pids/unicorn.pid)'
@@ -506,6 +507,7 @@ opts = GetoptLong.new(
   [ '--health-check-timeout', '-T', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--start-wait',           '-w', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--timeout',              '-t', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--bundle-command',       '-b', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--unicorn-config',       '-c', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--rackup-config',        '-r', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--pid-file',             '-p', GetoptLong::REQUIRED_ARGUMENT ],
@@ -528,7 +530,8 @@ options = {
   :pid_file => nil,
   :rackup_config => nil,
   :unicorn_config => nil,
-  :watch_proctitle => false
+  :watch_proctitle => false,
+  :bundle_command => 'bundle'
 }
 
 # Process options
@@ -554,6 +557,9 @@ opts.each do |opt, arg|
 
     when "--start-wait"
       options[:start_wait] = arg.to_i
+
+    when "--bundle-command"
+      options[:bundle_command] = arg.strip
 
     when "--unicorn-config"
       options[:unicorn_config] = arg.strip

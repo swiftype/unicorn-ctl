@@ -1,5 +1,9 @@
 ## UnicornCtl Changelog
 
+### 0.1.8 / 2014-08-29
+
+* Add support for `--bundle-command` option that allows replacing bundler binary with a different command.
+
 ### 0.1.7 / 2014-06-19
 
 * Add version module and `-v` key to the script allowing users to see what version is installed.
